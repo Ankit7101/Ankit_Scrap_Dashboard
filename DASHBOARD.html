@@ -1,1001 +1,291 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Ferro Alloys & Scrap — Inventory Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<style>
-:root {
-  /* Core palette — deep navy base */
-  --bg:        #0B0F1A;
-  --bg-2:      #111827;
-  --bg-3:      #1A2236;
-  --bg-4:      #222D42;
-  --border:    rgba(255,255,255,0.08);
-  --border-hi: rgba(255,255,255,0.14);
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Ferro Alloys & Scrap — Inventory Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --bg: #0B0F1A;
+            --bg-2: #111827;
+            --bg-3: #1A2236;
+            --bg-4: #222D42;
+            --border: rgba(255,255,255,0.08);
+            --text-1: #F0F4FF;
+            --text-2: #A8B4CC;
+            --text-3: #6B7A99;
+            --gold: #F5A623;
+            --gold-dim: rgba(245,166,35,0.15);
+            --teal: #00D4AA;
+            --r: 12px;
+            --font-main: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
 
-/* Text */
-–text-1:   #F0F4FF;
-–text-2:   #A8B4CC;
-–text-3:   #6B7A99;
-–text-inv: #0B0F1A;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Accent — amber/gold */
-–gold:      #F5A623;
-–gold-dim:  rgba(245,166,35,0.15);
-–gold-glow: rgba(245,166,35,0.25);
+        body {
+            font-family: var(--font-main);
+            background: var(--bg);
+            color: var(--text-1);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
 
-/* Status colors */
-–teal:      #00D4AA;
-–teal-dim:  rgba(0,212,170,0.12);
-–blue:      #4D8EFF;
-–blue-dim:  rgba(77,142,255,0.12);
-–rose:      #FF6B8A;
-–rose-dim:  rgba(255,107,138,0.12);
-–violet:    #A78BFA;
-–violet-dim:rgba(167,139,250,0.12);
+        /* --- HEADER --- */
+        .header {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
 
-–r:    10px;
-–r-sm: 6px;
-–r-lg: 16px;
+        .header-title { font-weight: 700; font-size: 1.1rem; }
+        .header-sub { color: var(--text-3); font-size: 0.75rem; font-family: var(--font-mono); }
 
-–font-main: ‘Space Grotesk’, sans-serif;
-–font-mono: ‘JetBrains Mono’, monospace;
+        /* --- KPI GRID --- */
+        .main-container { padding: 20px; max-width: 1600px; margin: 0 auto; }
 
-–shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
-–shadow-md: 0 8px 24px rgba(0,0,0,0.4);
-–shadow-lg: 0 20px 48px rgba(0,0,0,0.5);
-}
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .kpi-card {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: var(--r);
+            position: relative;
+            transition: transform 0.2s ease;
+        }
 
-body {
-font-family: var(–font-main);
-background: var(–bg);
-color: var(–text-1);
-min-height: 100vh;
-font-size: 13px;
-line-height: 1.5;
-}
+        .kpi-card:hover { transform: translateY(-5px); border-color: var(--gold); }
+        .kpi-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-3); letter-spacing: 1px; }
+        .kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--text-1); margin: 5px 0; font-family: var(--font-mono); }
+        .kpi-unit { font-size: 0.7rem; color: var(--gold); font-weight: 600; }
 
-/* Scrollbars */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(–bg-2); }
-::-webkit-scrollbar-thumb { background: var(–bg-4); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(–border-hi); }
+        /* --- FILTERS --- */
+        .filter-section {
+            background: var(--bg-2);
+            padding: 20px;
+            border-radius: var(--r);
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            border: 1px solid var(--border);
+        }
 
-/* ── HEADER ── */
-.header {
-background: var(–bg-2);
-border-bottom: 1px solid var(–border);
-padding: 0 24px;
-height: 58px;
-display: flex;
-align-items: center;
-justify-content: space-between;
-position: sticky;
-top: 0;
-z-index: 200;
-}
-.header::after {
-content: ‘’;
-position: absolute;
-bottom: 0; left: 0; right: 0;
-height: 1px;
-background: linear-gradient(90deg, transparent 0%, var(–gold) 40%, var(–teal) 70%, transparent 100%);
-opacity: 0.5;
-}
-.header-left { display: flex; align-items: center; gap: 12px; }
-.header-badge {
-width: 36px; height: 36px;
-background: var(–gold-dim);
-border: 1px solid rgba(245,166,35,0.4);
-border-radius: var(–r-sm);
-display: flex; align-items: center; justify-content: center;
-font-size: 17px;
-}
-.header-title {
-font-size: 15px;
-font-weight: 700;
-color: var(–text-1);
-letter-spacing: -0.2px;
-}
-.header-sub {
-font-size: 11px;
-color: var(–text-3);
-font-family: var(–font-mono);
-}
-.header-right { display: flex; align-items: center; gap: 10px; }
-.live-pill {
-display: flex; align-items: center; gap: 6px;
-background: rgba(0,212,170,0.1);
-border: 1px solid rgba(0,212,170,0.25);
-border-radius: 20px;
-padding: 4px 12px;
-font-size: 11px;
-color: var(–teal);
-font-family: var(–font-mono);
-}
-.pulse { width: 6px; height: 6px; background: var(–teal); border-radius: 50%; animation: blink 2s infinite; }
-@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
-#lastUpdated { font-size: 11px; color: var(–text-3); font-family: var(–font-mono); }
+        .filter-item label { display: block; font-size: 0.7rem; margin-bottom: 8px; color: var(--text-3); text-transform: uppercase; }
+        .filter-item input, .filter-item select {
+            width: 100%;
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            outline: none;
+        }
 
-/* ── MAIN ── */
-.main { padding: 20px 20px 48px; max-width: 1700px; margin: 0 auto; }
+        .btn-apply {
+            background: var(--gold);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            align-self: end;
+        }
 
-/* ── FILTER BAR ── */
-.filter-bar {
-background: var(–bg-2);
-border: 1px solid var(–border);
-border-radius: var(–r);
-padding: 14px 18px;
-display: flex;
-flex-wrap: wrap;
-gap: 12px;
-align-items: flex-end;
-margin-bottom: 18px;
-}
-.filter-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 130px; }
-.filter-label {
-font-size: 10px;
-font-weight: 600;
-text-transform: uppercase;
-letter-spacing: 0.9px;
-color: var(–text-3);
-}
-.filter-group input,
-.filter-group select {
-border: 1px solid var(–border-hi);
-border-radius: var(–r-sm);
-padding: 7px 10px;
-font-size: 12px;
-font-family: var(–font-main);
-color: var(–text-1);
-background: var(–bg-3);
-outline: none;
-transition: border-color 0.15s, box-shadow 0.15s;
-width: 100%;
-appearance: none;
--webkit-appearance: none;
-}
-.filter-group input:focus,
-.filter-group select:focus {
-border-color: var(–gold);
-box-shadow: 0 0 0 2px var(–gold-dim);
-}
-.filter-group input[type=“date”]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+        /* --- TABLES --- */
+        .table-container {
+            background: var(--bg-2);
+            border-radius: var(--r);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
 
-/* Multi-select */
-.multiselect-wrap { position: relative; }
-.multiselect-trigger {
-border: 1px solid var(–border-hi);
-border-radius: var(–r-sm);
-padding: 7px 28px 7px 10px;
-font-size: 12px;
-font-family: var(–font-main);
-color: var(–text-1);
-background: var(–bg-3);
-cursor: pointer;
-display: flex; align-items: center;
-min-height: 32px;
-user-select: none;
-transition: border-color 0.15s;
-white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.multiselect-trigger:hover { border-color: var(–gold); }
-.multiselect-trigger.open { border-color: var(–gold); box-shadow: 0 0 0 2px var(–gold-dim); }
-.multiselect-arrow { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(–text-3); pointer-events: none; }
-.multiselect-dropdown {
-position: absolute; top: calc(100% + 4px); left: 0;
-min-width: 100%; width: max-content; max-width: 280px;
-background: var(–bg-3);
-border: 1px solid var(–border-hi);
-border-radius: var(–r-sm);
-box-shadow: var(–shadow-lg);
-z-index: 500; display: none; overflow: hidden; flex-direction: column;
-}
-.multiselect-dropdown.visible { display: flex; }
-.multiselect-search-wrap { padding: 8px; border-bottom: 1px solid var(–border); }
-.multiselect-search {
-width: 100%; border: 1px solid var(–border-hi); border-radius: var(–r-sm);
-padding: 5px 8px; font-size: 11px; font-family: var(–font-main);
-color: var(–text-1); background: var(–bg-4); outline: none;
-}
-.multiselect-search:focus { border-color: var(–gold); }
-.multiselect-actions { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(–border); }
-.ms-action-btn {
-font-size: 10px; font-weight: 600; color: var(–gold); background: none;
-border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px;
-font-family: var(–font-main); letter-spacing: 0.3px; text-transform: uppercase;
-}
-.ms-action-btn:hover { background: var(–gold-dim); }
-.multiselect-list { overflow-y: auto; max-height: 200px; }
-.ms-option {
-display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-cursor: pointer; font-size: 12px; color: var(–text-2); transition: background 0.1s;
-}
-.ms-option:hover { background: var(–bg-4); }
-.ms-option.selected { background: var(–gold-dim); color: var(–text-1); }
-.ms-option input[type=checkbox] { width: 13px; height: 13px; accent-color: var(–gold); cursor: pointer; flex-shrink: 0; }
-.ms-count-badge {
-background: var(–gold); color: var(–text-inv);
-font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px;
-font-family: var(–font-mono); margin-left: 4px;
-}
+        .table-header {
+            padding: 15px 20px;
+            background: var(--bg-3);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
 
-.filter-actions { display: flex; gap: 8px; align-items: flex-end; }
-.btn { padding: 7px 16px; border-radius: var(–r-sm); font-size: 12px; font-weight: 600; font-family: var(–font-main); cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap; }
-.btn-primary { background: var(–gold); color: var(–text-inv); }
-.btn-primary:hover { background: #FFB940; box-shadow: 0 0 16px var(–gold-glow); }
-.btn-ghost { background: var(–bg-3); color: var(–text-2); border: 1px solid var(–border-hi); }
-.btn-ghost:hover { background: var(–bg-4); color: var(–text-1); }
+        .scroll-x { overflow-x: auto; }
 
-/* ── KPI ROW ── */
-.kpi-row {
-display: grid;
-grid-template-columns: repeat(5, 1fr);
-gap: 12px;
-margin-bottom: 18px;
-}
-@media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 700px)  { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th { text-align: left; padding: 12px 20px; background: var(--bg-3); font-size: 0.75rem; color: var(--text-3); text-transform: uppercase; }
+        td { padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        tr:hover { background: rgba(255,255,255,0.02); }
 
-.kpi-card {
-background: var(–bg-2);
-border: 1px solid var(–border);
-border-radius: var(–r);
-padding: 16px 18px;
-position: relative;
-overflow: hidden;
-transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-cursor: default;
-}
-.kpi-card:hover {
-border-color: var(–border-hi);
-transform: translateY(-2px);
-box-shadow: var(–shadow-md);
-}
-.kpi-card::before {
-content: ‘’;
-position: absolute;
-top: 0; left: 0; right: 0;
-height: 2px;
-}
-.kpi-card.c-gold::before  { background: linear-gradient(90deg, var(–gold), #FFD580); }
-.kpi-card.c-teal::before  { background: linear-gradient(90deg, var(–teal), #80FFE8); }
-.kpi-card.c-blue::before  { background: linear-gradient(90deg, var(–blue), #99C0FF); }
-.kpi-card.c-rose::before  { background: linear-gradient(90deg, var(–rose), #FFAABB); }
-.kpi-card.c-violet::before{ background: linear-gradient(90deg, var(–violet), #C4B5FD); }
+        /* --- MOBILE OPTIMIZATION --- */
+        @media (max-width: 768px) {
+            .header { padding: 12px; flex-direction: column; align-items: flex-start; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .filter-section { grid-template-columns: 1fr; }
+            .kpi-value { font-size: 1.5rem; }
+        }
 
-.kpi-icon {
-width: 32px; height: 32px; border-radius: var(–r-sm);
-display: flex; align-items: center; justify-content: center;
-font-size: 15px; margin-bottom: 10px;
-}
-.kpi-card.c-gold   .kpi-icon { background: var(–gold-dim); }
-.kpi-card.c-teal   .kpi-icon { background: var(–teal-dim); }
-.kpi-card.c-blue   .kpi-icon { background: var(–blue-dim); }
-.kpi-card.c-rose   .kpi-icon { background: var(–rose-dim); }
-.kpi-card.c-violet .kpi-icon { background: var(–violet-dim); }
-
-.kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px; color: var(–text-3); margin-bottom: 4px; }
-.kpi-value { font-family: var(–font-mono); font-size: 26px; font-weight: 600; color: var(–text-1); letter-spacing: -1px; line-height: 1; }
-.kpi-unit { font-size: 10px; color: var(–text-3); margin-top: 4px; font-family: var(–font-mono); }
-
-/* ── SECTION HEADER ── */
-.section-header {
-font-size: 10px; font-weight: 700; text-transform: uppercase;
-letter-spacing: 1.2px; color: var(–text-3);
-margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
-}
-.section-header::after { content: ‘’; flex: 1; height: 1px; background: var(–border); }
-
-/* ── GRADE CHIPS ── */
-.grade-micro-section { margin-bottom: 18px; }
-.grade-micro-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.grade-chip {
-background: var(–bg-2);
-border: 1px solid var(–border);
-border-radius: var(–r-sm);
-padding: 9px 13px;
-display: flex; flex-direction: column; gap: 2px;
-min-width: 130px;
-position: relative; overflow: hidden;
-transition: border-color 0.15s, box-shadow 0.15s;
-}
-.grade-chip::before { content: ‘’; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
-.grade-chip:nth-child(6n+1)::before { background: var(–gold); }
-.grade-chip:nth-child(6n+2)::before { background: var(–teal); }
-.grade-chip:nth-child(6n+3)::before { background: var(–blue); }
-.grade-chip:nth-child(6n+4)::before { background: var(–rose); }
-.grade-chip:nth-child(6n+5)::before { background: var(–violet); }
-.grade-chip:nth-child(6n+6)::before { background: #4ADE80; }
-.grade-chip:hover { border-color: var(–border-hi); box-shadow: var(–shadow-sm); }
-.grade-chip-name { font-size: 10px; font-weight: 600; color: var(–text-3); text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
-.grade-chip-val { font-family: var(–font-mono); font-size: 17px; font-weight: 600; color: var(–text-1); letter-spacing: -0.5px; }
-.grade-chip-unit { font-size: 10px; color: var(–text-3); font-family: var(–font-mono); }
-
-/* ── TWO COL TABLES ── */
-.tables-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
-@media (max-width: 860px) { .tables-row { grid-template-columns: 1fr; } }
-
-.table-card { background: var(–bg-2); border: 1px solid var(–border); border-radius: var(–r); overflow: hidden; display: flex; flex-direction: column; }
-.table-card-header { padding: 11px 14px; border-bottom: 1px solid var(–border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
-.table-card-title { font-size: 12px; font-weight: 700; color: var(–text-1); display: flex; align-items: center; gap: 7px; }
-.table-icon { width: 22px; height: 22px; background: var(–gold-dim); border: 1px solid rgba(245,166,35,0.3); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
-.row-count-badge { background: var(–bg-4); border: 1px solid var(–border-hi); color: var(–text-3); font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; font-family: var(–font-mono); }
-.table-scroll { overflow-x: auto; overflow-y: auto; max-height: 300px; flex: 1; }
-
-/* ── TABLE STYLES ── */
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-thead { position: sticky; top: 0; z-index: 5; }
-thead tr { background: var(–bg-3); }
-th {
-padding: 9px 12px; text-align: left;
-font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-color: var(–text-3); white-space: nowrap;
-cursor: pointer; user-select: none;
-border-right: 1px solid var(–border);
-transition: color 0.1s, background 0.1s;
-}
-th:last-child { border-right: none; }
-th:hover { background: var(–bg-4); color: var(–gold); }
-th.sort-asc::after  { content: ’ ↑’; color: var(–gold); }
-th.sort-desc::after { content: ’ ↓’; color: var(–gold); }
-
-tbody tr { border-bottom: 1px solid var(–border); transition: background 0.1s; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: var(–bg-3); }
-
-td { padding: 8px 12px; color: var(–text-2); font-size: 12px; white-space: nowrap; }
-td.num { font-family: var(–font-mono); text-align: right; font-size: 11px; color: var(–text-2); font-weight: 500; }
-td.hl  { color: var(–text-1); font-weight: 600; }
-td.batch { font-family: var(–font-mono); font-size: 10px; color: var(–text-3); }
-
-/* ── FULL TABLE ── */
-.full-table-card { background: var(–bg-2); border: 1px solid var(–border); border-radius: var(–r); overflow: hidden; margin-bottom: 18px; }
-.full-table-header { background: var(–bg-3); border-bottom: 1px solid var(–border); padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-.search-wrap { position: relative; display: flex; align-items: center; }
-.search-icon { position: absolute; left: 9px; font-size: 12px; color: var(–text-3); pointer-events: none; }
-.search-box {
-padding: 6px 12px 6px 30px;
-border: 1px solid var(–border-hi);
-border-radius: var(–r-sm);
-font-family: var(–font-main);
-font-size: 12px; color: var(–text-1);
-background: var(–bg-4);
-outline: none; width: 220px;
-transition: border-color 0.15s;
-}
-.search-box::placeholder { color: var(–text-3); }
-.search-box:focus { border-color: var(–gold); box-shadow: 0 0 0 2px var(–gold-dim); }
-.full-table-scroll { overflow-x: auto; overflow-y: auto; max-height: 480px; }
-
-/* ── PAGINATION ── */
-.pagination {
-padding: 10px 14px; border-top: 1px solid var(–border);
-display: flex; align-items: center; justify-content: space-between;
-flex-wrap: wrap; gap: 8px; background: var(–bg-2);
-}
-.page-info { font-size: 11px; color: var(–text-3); font-family: var(–font-mono); }
-.page-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-.page-btn {
-min-width: 28px; height: 28px;
-border: 1px solid var(–border-hi);
-background: var(–bg-3); border-radius: 5px;
-cursor: pointer; font-size: 11px; font-family: var(–font-mono);
-color: var(–text-2); display: flex; align-items: center; justify-content: center;
-transition: all 0.12s; padding: 0 6px;
-}
-.page-btn:hover:not(:disabled) { border-color: var(–gold); color: var(–gold); }
-.page-btn.active { background: var(–gold); color: var(–text-inv); border-color: var(–gold); font-weight: 700; }
-.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-/* ── LOADING ── */
-.loading-overlay {
-position: fixed; inset: 0; background: var(–bg);
-display: flex; align-items: center; justify-content: center;
-z-index: 9999; flex-direction: column; gap: 16px;
-}
-.spinner-ring {
-width: 48px; height: 48px;
-border: 3px solid var(–gold-dim);
-border-top-color: var(–gold);
-border-radius: 50%;
-animation: spin 0.75s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-title { font-size: 18px; font-weight: 700; color: var(–text-1); }
-.loading-text  { font-size: 12px; color: var(–text-3); font-family: var(–font-mono); }
-
-/* ── ERROR ── */
-.error-banner {
-background: rgba(255,107,138,0.1); border: 1px solid rgba(255,107,138,0.3);
-color: var(–rose); border-radius: var(–r-sm); padding: 10px 14px;
-font-size: 12px; margin-bottom: 14px; display: none;
-}
-
-/* ── EMPTY STATE ── */
-.empty-state { padding: 36px 20px; text-align: center; color: var(–text-3); font-size: 12px; font-style: italic; }
-
-/* ── RESPONSIVE ── */
-@media (max-width: 600px) {
-.main { padding: 12px 12px 32px; }
-.header { padding: 0 14px; }
-.header-sub { display: none; }
-.filter-group { min-width: 100%; }
-.kpi-value { font-size: 22px; }
-.search-box { width: 160px; }
-}
-@media (max-width: 480px) {
-.live-pill { display: none; }
-#lastUpdated { display: none; }
-}
-</style>
-
+        /* Custom Status Pill */
+        .live-indicator {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0, 212, 170, 0.1);
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 0.7rem; color: var(--teal); border: 1px solid var(--teal);
+        }
+        .dot { width: 8px; height: 8px; background: var(--teal); border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
 </head>
 <body>
 
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner-ring"></div>
-  <div class="loading-title">Ferro Alloys Dashboard</div>
-  <div class="loading-text">Fetching live SAP data…</div>
-</div>
-
 <header class="header">
-  <div class="header-left">
-    <div class="header-badge">⚙️</div>
     <div>
-      <div class="header-title">Ferro Alloys & Scrap · Inventory</div>
-      <div class="header-sub">SAP Material Stock · Director View</div>
+        <div class="header-title">⚒️ Ferro Alloys & Scrap</div>
+        <div class="header-sub">Director Real-Time Inventory View</div>
     </div>
-  </div>
-  <div class="header-right">
-    <div class="live-pill"><div class="pulse"></div><span>Live Data</span></div>
-    <span id="lastUpdated">—</span>
-  </div>
+    <div class="live-indicator">
+        <div class="dot"></div>
+        LIVE SAP DATA
+    </div>
 </header>
 
-<div class="main">
-
-  <div class="error-banner" id="errorBanner"></div>
-
-  <!-- Filter Bar -->
-
-  <div class="filter-bar">
-    <div class="filter-group" style="min-width:120px;max-width:155px;">
-      <div class="filter-label">Date From</div>
-      <input type="date" id="filterDateFrom"/>
-    </div>
-    <div class="filter-group" style="min-width:120px;max-width:155px;">
-      <div class="filter-label">Date To</div>
-      <input type="date" id="filterDateTo"/>
-    </div>
-    <div class="filter-group" style="min-width:155px;max-width:260px;">
-      <div class="filter-label">Product / Grade</div>
-      <div class="multiselect-wrap" id="msProductWrap">
-        <div class="multiselect-trigger" id="msProductTrigger" onclick="toggleMs('msProduct')">
-          <span id="msProductLabel">All Products</span>
+<div class="main-container">
+    
+    <div class="filter-section">
+        <div class="filter-item">
+            <label>Start Date</label>
+            <input type="date" id="dateFrom">
         </div>
-        <span class="multiselect-arrow">▾</span>
-        <div class="multiselect-dropdown" id="msProductDropdown">
-          <div class="multiselect-search-wrap">
-            <input class="multiselect-search" placeholder="Search…" oninput="filterMsOptions('msProduct', this.value)"/>
-          </div>
-          <div class="multiselect-actions">
-            <button class="ms-action-btn" onclick="selectAllMs('msProduct')">All</button>
-            <button class="ms-action-btn" onclick="clearMs('msProduct')">None</button>
-          </div>
-          <div class="multiselect-list" id="msProductList"></div>
+        <div class="filter-item">
+            <label>End Date</label>
+            <input type="date" id="dateTo">
         </div>
-      </div>
-    </div>
-    <div class="filter-group" style="min-width:175px;max-width:280px;">
-      <div class="filter-label">Supplier</div>
-      <div class="multiselect-wrap" id="msSupplierWrap">
-        <div class="multiselect-trigger" id="msSupplierTrigger" onclick="toggleMs('msSupplier')">
-          <span id="msSupplierLabel">All Suppliers</span>
+        <div class="filter-item">
+            <label>Product Grade</label>
+            <select id="prodFilter"><option>All Products</option></select>
         </div>
-        <span class="multiselect-arrow">▾</span>
-        <div class="multiselect-dropdown" id="msSupplierDropdown">
-          <div class="multiselect-search-wrap">
-            <input class="multiselect-search" placeholder="Search…" oninput="filterMsOptions('msSupplier', this.value)"/>
-          </div>
-          <div class="multiselect-actions">
-            <button class="ms-action-btn" onclick="selectAllMs('msSupplier')">All</button>
-            <button class="ms-action-btn" onclick="clearMs('msSupplier')">None</button>
-          </div>
-          <div class="multiselect-list" id="msSupplierList"></div>
+        <button class="btn-apply" onclick="applyFilters()">UPDATE VIEW</button>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-top: 4px solid var(--gold);">
+            <div class="kpi-label">Unrestricted Stock</div>
+            <div class="kpi-value" id="kpiUnrest">0.00</div>
+            <div class="kpi-unit">METRIC TONNES</div>
         </div>
-      </div>
+        <div class="kpi-card" style="border-top: 4px solid var(--teal);">
+            <div class="kpi-label">Quality Inspection</div>
+            <div class="kpi-value" id="kpiQI">0.00</div>
+            <div class="kpi-unit">METRIC TONNES</div>
+        </div>
+        <div class="kpi-card" style="border-top: 4px solid #4D8EFF;">
+            <div class="kpi-label">Current Inventory Value</div>
+            <div class="kpi-value" id="kpiValue">₹ 0</div>
+            <div class="kpi-unit">INR ESTIMATE</div>
+        </div>
+        <div class="kpi-card" style="border-top: 4px solid #A78BFA;">
+            <div class="kpi-label">Active Suppliers</div>
+            <div class="kpi-value" id="kpiSuppliers">0</div>
+            <div class="kpi-unit">TOTAL UNIQUE</div>
+        </div>
     </div>
-    <div class="filter-actions">
-      <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
-      <button class="btn btn-ghost" onclick="resetFilters()">Reset</button>
-    </div>
-  </div>
 
-  <!-- KPI Row -->
-
-  <div class="kpi-row">
-    <div class="kpi-card c-gold">
-      <div class="kpi-icon">⚖️</div>
-      <div class="kpi-label">Unrestricted Stock</div>
-      <div class="kpi-value" id="kpiTotalWeight">—</div>
-      <div class="kpi-unit">Metric Tonnes</div>
+    <div class="table-container">
+        <div class="table-header">📦 Batch Detailed Records</div>
+        <div class="scroll-x">
+            <table id="mainTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Supplier</th>
+                        <th>Batch ID</th>
+                        <th>Qty (KG)</th>
+                        <th>Status</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    </tbody>
+            </table>
+        </div>
     </div>
-    <div class="kpi-card c-teal">
-      <div class="kpi-icon">🔬</div>
-      <div class="kpi-label">Quality Inspection</div>
-      <div class="kpi-value" id="kpiQIWeight">—</div>
-      <div class="kpi-unit">Metric Tonnes</div>
-    </div>
-    <div class="kpi-card c-blue">
-      <div class="kpi-icon">💰</div>
-      <div class="kpi-label">Total Stock Value</div>
-      <div class="kpi-value" id="kpiTotalValue">—</div>
-      <div class="kpi-unit">INR</div>
-    </div>
-    <div class="kpi-card c-rose">
-      <div class="kpi-icon">🏭</div>
-      <div class="kpi-label">Active Suppliers</div>
-      <div class="kpi-value" id="kpiSuppliers">—</div>
-      <div class="kpi-unit">Unique</div>
-    </div>
-    <div class="kpi-card c-violet">
-      <div class="kpi-icon">📦</div>
-      <div class="kpi-label">Products / SKUs</div>
-      <div class="kpi-value" id="kpiProducts">—</div>
-      <div class="kpi-unit">Unique</div>
-    </div>
-  </div>
-
-  <!-- Grade Micro KPIs -->
-
-  <div class="grade-micro-section">
-    <div class="section-header">Weight by Grade (MT)</div>
-    <div class="grade-micro-grid" id="gradeMicroGrid"></div>
-  </div>
-
-  <!-- Supplier & Grade Tables -->
-
-  <div class="tables-row">
-    <div class="table-card">
-      <div class="table-card-header">
-        <div class="table-card-title"><span class="table-icon">🏭</span> Supplier Summary</div>
-        <span class="row-count-badge" id="supplierCount">0</span>
-      </div>
-      <div class="table-scroll">
-        <table id="supplierTable">
-          <thead><tr>
-            <th data-col="0">Supplier Name</th>
-            <th data-col="1">Weight (T)</th>
-            <th data-col="2">Avg Price ₹</th>
-            <th data-col="3">Value</th>
-          </tr></thead>
-          <tbody id="supplierBody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="table-card">
-      <div class="table-card-header">
-        <div class="table-card-title"><span class="table-icon">📦</span> Grade / Product Summary</div>
-        <span class="row-count-badge" id="gradeCount">0</span>
-      </div>
-      <div class="table-scroll">
-        <table id="gradeTable">
-          <thead><tr>
-            <th data-col="0">Product (Grade)</th>
-            <th data-col="1">Weight (T)</th>
-            <th data-col="2">QI Weight (T)</th>
-          </tr></thead>
-          <tbody id="gradeBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Full Detail Table -->
-
-  <div class="full-table-card">
-    <div class="full-table-header">
-      <div class="table-card-title">
-        <span class="table-icon">🗂</span> Full Detail Records
-        <span class="row-count-badge" id="fullTableCount">0</span>
-      </div>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input class="search-box" type="text" id="tableSearch" placeholder="Search records…" oninput="onTableSearch()"/>
-      </div>
-    </div>
-    <div class="full-table-scroll">
-      <table id="fullTable">
-        <thead><tr>
-          <th data-col="0">GRN Date</th>
-          <th data-col="1">Product</th>
-          <th data-col="2">Supplier</th>
-          <th data-col="3">Batch</th>
-          <th data-col="4">Unrestricted (KG)</th>
-          <th data-col="5">QI (KG)</th>
-          <th data-col="6">Total (T)</th>
-          <th data-col="7">Avg Price ₹</th>
-          <th data-col="8">Stock Value</th>
-        </tr></thead>
-        <tbody id="fullTableBody"></tbody>
-      </table>
-    </div>
-    <div class="pagination">
-      <div class="page-info" id="pageInfo">—</div>
-      <div class="page-btns" id="pageBtns"></div>
-    </div>
-  </div>
-
 </div>
 
 <script>
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgxNmCByab9PpTPHgKmagg0o9Byf1kpbr-S58fI5MpGCt7Oauhxa-eJdKh3CDSLg/pub?gid=1079547348&single=true&output=csv';
+    // Logic to handle the data fetching and rendering
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgxNmCByab9PpTPHgKmagg0o9Byf1kpbr-S58fI5MpGCt7Oauhxa-eJdKh3CDSLg/pub?gid=1079547348&single=true&output=csv';
 
-let allData = [], filteredData = [], currentPage = 1;
-const PAGE_SIZE = 50;
-let tableSearchTerm = '';
-const msState = {
-  msProduct:  { all: [], selected: new Set(), open: false },
-  msSupplier: { all: [], selected: new Set(), open: false },
-};
-const sortState = {};
-const COL_MAP = {
-  fullTable:     ['_date','Product','Supplier Name','Batch SID','_unrest','_qi','_totalWeightT','_price','_value'],
-  supplierTable: ['Supplier Name','_totalWeightT','_avgPrice','_totalValue'],
-  gradeTable:    ['Product','_totalWeightT','_qiWeightT'],
-};
-
-window.onload = () => {
-  loadFromUrl(SHEET_URL);
-  document.addEventListener('click', onDocClick);
-};
-
-function loadFromUrl(url) {
-  showLoading();
-  Papa.parse(url, {
-    download: true, header: true, skipEmptyLines: true,
-    complete: (results) => {
-      if (!results.data || results.data.length === 0) {
-        showError('Sheet loaded but no data found. Check the sheet has data and is published correctly.');
-        hideLoading(); return;
-      }
-      processData(results.data);
-      hideLoading();
-      document.getElementById('lastUpdated').textContent =
-        'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
-    },
-    error: (err) => { hideLoading(); showError('Could not load data. Check sheet is published as CSV. ' + err.message); }
-  });
-}
-
-function processData(raw) {
-  allData = raw.map(r => {
-    const unrest = parseFloat(r['UnrestrictedStock']) || parseFloat(r['Unrestricted Stock']) || 0;
-    const qi     = parseFloat(r['QualityInspection']) || parseFloat(r['Quality Inspection']) || 0;
-    const price  = parseFloat(r['Average Price']) || 0;
-    const value  = parseFloat(r['Unrestricted Stock Value']) || 0;
-    let dateStr = '';
-    const d = r['GRN Date'];
-    if (d && d !== '#' && d !== '') {
-      const s = String(d).slice(0,10);
-      if (/^\d{4}-\d{2}-\d{2}/.test(s)) dateStr = s;
-    }
-    const supplier = (r['Supplier Name'] && r['Supplier Name'] !== '#') ? r['Supplier Name'].trim() : '(Unknown)';
-    const product  = (r['Product'] && r['Product'] !== '#') ? r['Product'].trim() : '(Unknown)';
-    return {
-      ...r, '_date': dateStr, '_unrest': unrest, '_qi': qi, '_price': price, '_value': value,
-      '_totalWeightT': Math.round((unrest/1000)*1000)/1000,
-      '_qiWeightT':    Math.round((qi/1000)*1000)/1000,
-      '_avgPrice': price, '_totalValue': value,
-      'Supplier Name': supplier, 'Product': product,
-    };
-  }).filter(r => r['_unrest'] > 0 || r['_qi'] > 0);
-  populateMultiSelects();
-  setDefaultDates();
-  applyFilters();
-}
-
-function populateMultiSelects() {
-  const products  = [...new Set(allData.map(r => r['Product']).filter(v => v && v !== '(Unknown)'))].sort();
-  const suppliers = [...new Set(allData.map(r => r['Supplier Name']).filter(v => v && v !== '(Unknown)'))].sort();
-  buildMs('msProduct', products);
-  buildMs('msSupplier', suppliers);
-}
-
-function buildMs(id, items) {
-  msState[id].all = items;
-  msState[id].selected = new Set(items);
-  renderMsList(id);
-  updateMsTrigger(id);
-}
-
-function renderMsList(id, filter = '') {
-  const listEl = document.getElementById(id + 'List');
-  listEl.innerHTML = '';
-  const items = filter ? msState[id].all.filter(v => v.toLowerCase().includes(filter.toLowerCase())) : msState[id].all;
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'ms-option' + (msState[id].selected.has(item) ? ' selected' : '');
-    div.innerHTML = `<input type="checkbox" ${msState[id].selected.has(item) ? 'checked' : ''}/><span>${item}</span>`;
-    div.onclick = (e) => {
-      e.stopPropagation();
-      if (msState[id].selected.has(item)) { msState[id].selected.delete(item); div.classList.remove('selected'); div.querySelector('input').checked = false; }
-      else { msState[id].selected.add(item); div.classList.add('selected'); div.querySelector('input').checked = true; }
-      updateMsTrigger(id);
-    };
-    listEl.appendChild(div);
-  });
-}
-
-function filterMsOptions(id, val) { renderMsList(id, val); }
-function selectAllMs(id) { msState[id].all.forEach(v => msState[id].selected.add(v)); renderMsList(id); updateMsTrigger(id); }
-function clearMs(id)      { msState[id].selected.clear(); renderMsList(id); updateMsTrigger(id); }
-
-function updateMsTrigger(id) {
-  const label = document.getElementById(id + 'Label');
-  const trigger = document.getElementById(id + 'Trigger');
-  const sel = msState[id].selected.size, total = msState[id].all.length;
-  const oldBadge = trigger.querySelector('.ms-count-badge');
-  if (oldBadge) oldBadge.remove();
-  if (sel === 0) { label.textContent = 'None selected'; }
-  else if (sel === total) { label.textContent = id === 'msProduct' ? 'All Products' : 'All Suppliers'; }
-  else {
-    const first = [...msState[id].selected][0];
-    label.textContent = sel === 1 ? first.substring(0,22) + (first.length > 22 ? '…' : '') : `${sel} selected`;
-    const badge = document.createElement('span');
-    badge.className = 'ms-count-badge'; badge.textContent = sel;
-    trigger.appendChild(badge);
-  }
-}
-
-function toggleMs(id) {
-  const isOpen = msState[id].open;
-  Object.keys(msState).forEach(k => {
-    msState[k].open = false;
-    document.getElementById(k+'Dropdown').classList.remove('visible');
-    document.getElementById(k+'Trigger').classList.remove('open');
-  });
-  if (!isOpen) {
-    msState[id].open = true;
-    document.getElementById(id+'Dropdown').classList.add('visible');
-    document.getElementById(id+'Trigger').classList.add('open');
-  }
-}
-
-function onDocClick(e) {
-  Object.keys(msState).forEach(id => {
-    const dropdown = document.getElementById(id+'Dropdown');
-    const trigger  = document.getElementById(id+'Trigger');
-    if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
-      msState[id].open = false;
-      dropdown.classList.remove('visible');
-      trigger.classList.remove('open');
-    }
-  });
-}
-
-function setDefaultDates() {
-  const dates = allData.map(r => r['_date']).filter(Boolean).sort();
-  if (dates.length) {
-    document.getElementById('filterDateFrom').value = dates[0];
-    document.getElementById('filterDateTo').value   = dates[dates.length-1];
-  }
-}
-
-function applyFilters() {
-  const from = document.getElementById('filterDateFrom').value;
-  const to   = document.getElementById('filterDateTo').value;
-  const selProd = msState.msProduct.selected;
-  const selSupp = msState.msSupplier.selected;
-  filteredData = allData.filter(r => {
-    if (from && r['_date'] && r['_date'] < from) return false;
-    if (to   && r['_date'] && r['_date'] > to)   return false;
-    if (selProd.size === 0) return false;
-    if (selProd.size < msState.msProduct.all.length && !selProd.has(r['Product'])) return false;
-    if (selSupp.size === 0) return false;
-    if (selSupp.size < msState.msSupplier.all.length && !selSupp.has(r['Supplier Name'])) return false;
-    return true;
-  });
-  tableSearchTerm = '';
-  document.getElementById('tableSearch').value = '';
-  currentPage = 1;
-  renderAll();
-}
-
-function resetFilters() { setDefaultDates(); selectAllMs('msProduct'); selectAllMs('msSupplier'); applyFilters(); }
-
-function renderAll() { renderKPIs(); renderGradeMicro(); renderSupplierTable(); renderGradeTable(); renderFullTable(); }
-
-function renderKPIs() {
-  const d = filteredData;
-  const totalKG  = d.reduce((s,r) => s + r._unrest, 0);
-  const totalQI  = d.reduce((s,r) => s + r._qi, 0);
-  const totalVal = d.reduce((s,r) => s + r._value, 0);
-  const supps    = new Set(d.filter(r => r['Supplier Name'] !== '(Unknown)').map(r => r['Supplier Name']));
-  const prods    = new Set(d.map(r => r['Product']));
-  document.getElementById('kpiTotalWeight').textContent = fmtTon(totalKG/1000);
-  document.getElementById('kpiQIWeight').textContent    = fmtTon(totalQI/1000);
-  document.getElementById('kpiTotalValue').textContent  = fmtCrore(totalVal);
-  document.getElementById('kpiSuppliers').textContent   = supps.size;
-  document.getElementById('kpiProducts').textContent    = prods.size;
-}
-
-function renderGradeMicro() {
-  const map = {};
-  filteredData.forEach(r => {
-    const p = r['Product'] || '(Unknown)';
-    if (!map[p]) map[p] = { kg: 0, qi: 0 };
-    map[p].kg += r._unrest; map[p].qi += r._qi;
-  });
-  const container = document.getElementById('gradeMicroGrid');
-  container.innerHTML = '';
-  const sorted = Object.entries(map).sort((a,b) => b[1].kg - a[1].kg);
-  sorted.forEach(([name, vals]) => {
-    const div = document.createElement('div');
-    div.className = 'grade-chip';
-    div.innerHTML = `<div class="grade-chip-name" title="${name}">${name}</div>
-      <div class="grade-chip-val">${fmtTon(vals.kg/1000)}</div>
-      <div class="grade-chip-unit">MT Unrestricted</div>`;
-    container.appendChild(div);
-  });
-  if (!sorted.length) container.innerHTML = '<div style="color:var(--text-3);font-size:12px;font-style:italic;">No data for current filters</div>';
-}
-
-function renderSupplierTable() {
-  const map = {};
-  filteredData.forEach(r => {
-    const s = r['Supplier Name'];
-    if (!map[s]) map[s] = { name: s, kg: 0, priceSum: 0, cnt: 0, val: 0 };
-    map[s].kg += r._unrest; map[s].priceSum += r._price; map[s].cnt += 1; map[s].val += r._value;
-  });
-  let rows = Object.values(map).map(m => ({'Supplier Name': m.name, '_totalWeightT': m.kg/1000, '_avgPrice': m.cnt ? m.priceSum/m.cnt : 0, '_totalValue': m.val}));
-  rows = sortTableRows(rows, 'supplierTable');
-  document.getElementById('supplierCount').textContent = rows.length + ' rows';
-  const body = document.getElementById('supplierBody');
-  body.innerHTML = '';
-  if (!rows.length) { body.innerHTML = '<tr><td colspan="4" class="empty-state">No data</td></tr>'; return; }
-  rows.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="hl">${r['Supplier Name']}</td><td class="num">${fmtNum(r._totalWeightT,2)}</td><td class="num">${fmtNum(r._avgPrice,2)}</td><td class="num">${fmtCrore(r._totalValue)}</td>`;
-    body.appendChild(tr);
-  });
-}
-
-function renderGradeTable() {
-  const map = {};
-  filteredData.forEach(r => {
-    const p = r['Product'];
-    if (!map[p]) map[p] = { name: p, kg: 0, qi: 0 };
-    map[p].kg += r._unrest; map[p].qi += r._qi;
-  });
-  let rows = Object.values(map).map(m => ({'Product': m.name, '_totalWeightT': m.kg/1000, '_qiWeightT': m.qi/1000}));
-  rows = sortTableRows(rows, 'gradeTable');
-  document.getElementById('gradeCount').textContent = rows.length + ' rows';
-  const body = document.getElementById('gradeBody');
-  body.innerHTML = '';
-  if (!rows.length) { body.innerHTML = '<tr><td colspan="3" class="empty-state">No data</td></tr>'; return; }
-  rows.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="hl">${r['Product']}</td><td class="num">${fmtNum(r._totalWeightT,3)}</td><td class="num">${fmtNum(r._qiWeightT,3)}</td>`;
-    body.appendChild(tr);
-  });
-}
-
-function onTableSearch() { tableSearchTerm = document.getElementById('tableSearch').value.toLowerCase(); currentPage = 1; renderFullTable(); }
-
-function renderFullTable() {
-  let data = [...filteredData];
-  if (tableSearchTerm) {
-    data = data.filter(r =>
-      (r['Product']||'').toLowerCase().includes(tableSearchTerm) ||
-      (r['Supplier Name']||'').toLowerCase().includes(tableSearchTerm) ||
-      (r['Batch SID']||'').toLowerCase().includes(tableSearchTerm) ||
-      (r['_date']||'').includes(tableSearchTerm)
-    );
-  }
-  data = sortTableRows(data, 'fullTable');
-  const total = data.length;
-  const pages = Math.max(1, Math.ceil(total/PAGE_SIZE));
-  if (currentPage > pages) currentPage = pages;
-  const start = (currentPage-1)*PAGE_SIZE;
-  const slice = data.slice(start, start+PAGE_SIZE);
-  document.getElementById('fullTableCount').textContent = total.toLocaleString() + ' rows';
-  document.getElementById('pageInfo').textContent = total ? `Showing ${start+1}–${Math.min(start+PAGE_SIZE,total)} of ${total.toLocaleString()}` : 'No results';
-  const body = document.getElementById('fullTableBody');
-  body.innerHTML = '';
-  if (!slice.length) { body.innerHTML = '<tr><td colspan="9" class="empty-state">No records match.</td></tr>'; }
-  else {
-    slice.forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${r['_date']||'—'}</td><td class="hl">${r['Product']||'—'}</td><td>${r['Supplier Name']||'—'}</td><td class="batch">${r['Batch SID']||'—'}</td><td class="num">${fmtNum(r._unrest,1)}</td><td class="num">${fmtNum(r._qi,1)}</td><td class="num">${fmtNum(r._totalWeightT,3)}</td><td class="num">${fmtNum(r._price,2)}</td><td class="num">${fmtCrore(r._value)}</td>`;
-      body.appendChild(tr);
-    });
-  }
-  renderPagination(pages, total);
-}
-
-function renderPagination(pages, total) {
-  const c = document.getElementById('pageBtns');
-  c.innerHTML = '';
-  if (pages <= 1) return;
-  const addBtn = (label, page, active, disabled) => {
-    const b = document.createElement('button');
-    b.className = 'page-btn' + (active ? ' active' : '');
-    b.textContent = label; b.disabled = !!disabled;
-    b.onclick = () => { currentPage = page; renderFullTable(); };
-    c.appendChild(b);
-  };
-  addBtn('‹', currentPage-1, false, currentPage===1);
-  const range = getPageRange(currentPage, pages);
-  range.forEach(p => {
-    if (p === '…') { const s = document.createElement('span'); s.textContent = '…'; s.style.cssText = 'padding:0 4px;color:var(--text-3);font-size:12px;align-self:center;'; c.appendChild(s); }
-    else addBtn(p, p, p===currentPage, false);
-  });
-  addBtn('›', currentPage+1, false, currentPage===pages);
-}
-
-function getPageRange(cur, total) {
-  if (total<=7) return [...Array(total)].map((_,i)=>i+1);
-  if (cur<=4) return [1,2,3,4,5,'…',total];
-  if (cur>=total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
-  return [1,'…',cur-1,cur,cur+1,'…',total];
-}
-
-function sortTableRows(rows, tableId) {
-  const st = sortState[tableId];
-  if (!st) return rows;
-  const cols = COL_MAP[tableId];
-  const key  = cols[st.col];
-  return [...rows].sort((a,b) => {
-    let va = a[key] ?? '', vb = b[key] ?? '';
-    if (typeof va === 'number' && typeof vb === 'number') return st.dir==='asc' ? va-vb : vb-va;
-    va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
-    return st.dir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-  });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    document.querySelectorAll('table').forEach(table => {
-      const tid = table.id;
-      table.querySelectorAll('th').forEach(th => {
-        const col = parseInt(th.dataset.col);
-        th.addEventListener('click', () => {
-          const cur = sortState[tid];
-          sortState[tid] = (cur && cur.col===col) ? { col, dir: cur.dir==='asc'?'desc':'asc' } : { col, dir: 'desc' };
-          table.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc','sort-desc'));
-          th.classList.add(sortState[tid].dir==='asc' ? 'sort-asc' : 'sort-desc');
-          renderAll();
+    async function fetchData() {
+        Papa.parse(SHEET_URL, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                renderDashboard(results.data);
+            }
         });
-      });
-    });
-  }, 800);
-});
+    }
 
-function fmtTon(v) {
-  if (v>=1000) return (v/1000).toFixed(2)+'K';
-  if (v>=100)  return v.toFixed(1);
-  return v.toFixed(2);
-}
-function fmtCrore(v) {
-  if (v>=10000000) return (v/10000000).toFixed(2)+' Cr';
-  if (v>=100000)   return (v/100000).toFixed(2)+' L';
-  return v.toLocaleString('en-IN',{maximumFractionDigits:0});
-}
-function fmtNum(v, dec=2) {
-  if (isNaN(v)) return '—';
-  return v.toLocaleString('en-IN',{minimumFractionDigits:dec,maximumFractionDigits:dec});
-}
-function showLoading() { document.getElementById('loadingOverlay').style.display='flex'; }
-function hideLoading() { document.getElementById('loadingOverlay').style.display='none'; }
-function showError(msg) { const el=document.getElementById('errorBanner'); el.textContent='⚠ '+msg; el.style.display='block'; }
+    function renderDashboard(data) {
+        const tbody = document.getElementById('tableBody');
+        let totalUnrest = 0;
+        let totalQI = 0;
+        let totalVal = 0;
+        let suppliers = new Set();
+
+        tbody.innerHTML = '';
+
+        data.forEach(row => {
+            const unrest = parseFloat(row['Unrestricted Stock']) || 0;
+            const qi = parseFloat(row['Quality Inspection']) || 0;
+            const value = parseFloat(row['Unrestricted Stock Value']) || 0;
+            
+            totalUnrest += unrest;
+            totalQI += qi;
+            totalVal += value;
+            if(row['Supplier Name']) suppliers.add(row['Supplier Name']);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row['GRN Date'] || '-'}</td>
+                <td style="color:var(--gold); font-weight:600;">${row['Product'] || '-'}</td>
+                <td>${row['Supplier Name'] || '-'}</td>
+                <td style="font-family:var(--font-mono); font-size:0.7rem;">${row['Batch SID'] || '-'}</td>
+                <td>${unrest.toLocaleString()}</td>
+                <td><span style="color:${qi > 0 ? 'var(--teal)' : 'var(--text-3)'}">${qi > 0 ? 'In Review' : 'Ready'}</span></td>
+                <td>₹${value.toLocaleString('en-IN')}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Update KPIs
+        document.getElementById('kpiUnrest').innerText = (totalUnrest / 1000).toFixed(2);
+        document.getElementById('kpiQI').innerText = (totalQI / 1000).toFixed(2);
+        document.getElementById('kpiValue').innerText = '₹ ' + (totalVal / 10000000).toFixed(2) + ' Cr';
+        document.getElementById('kpiSuppliers').innerText = suppliers.size;
+    }
+
+    function applyFilters() {
+        // Simple refresh for now
+        fetchData();
+    }
+
+    window.onload = fetchData;
 </script>
 
 </body>
